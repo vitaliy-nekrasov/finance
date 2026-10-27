@@ -3,12 +3,12 @@ import { getDb } from '@/db/client';
 import { getLatestMonth, getMonthly, getMonthsWithData, getReport } from '@/db/reports';
 import { CATEGORIES } from '@/lib/categories';
 import { formatUAH } from '@/lib/money';
-import { periodQuery, prevMonth, resolvePeriod, SHORT_MONTH_NOM, type PeriodParams } from '@/lib/period';
+import { neighbourChips, pct, periodQuery, prevMonth, resolvePeriod, SHORT_MONTH_NOM, type PeriodParams } from '@/lib/period';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
 import { CategoryBars } from '@/components/CategoryBars';
 import { Glass } from '@/components/Glass';
 import { MonthlyBars } from '@/components/MonthlyBars';
-import { PeriodPicker, type PeriodChip } from '@/components/PeriodPicker';
+import { PeriodPicker } from '@/components/PeriodPicker';
 import { Rise } from '@/components/Rise';
 
 export const metadata = { title: 'Обзор' };
@@ -18,32 +18,6 @@ const MONTHS_LOWER = ['январь', 'февраль', 'март', 'апрел�
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
-function chipLabel(m: string, selectedYear: string): string {
-  const [y, mo] = m.split('-');
-  const name = SHORT_MONTH_NOM[Number(mo) - 1];
-  return y === selectedYear ? name : `${name} ${y.slice(2)}`;
-}
-
-function neighbourChips(all: string[], selected: string | null, fallbackYear: string): PeriodChip[] {
-  const set = new Set(all);
-  let months: string[];
-  if (selected) {
-    set.add(selected);
-    const sorted = [...set].sort();
-    const i = sorted.indexOf(selected);
-    months = sorted.slice(Math.max(0, i - 2), i + 3);
-  } else {
-    months = [...set].sort().slice(-4);
-  }
-  const year = selected ? selected.slice(0, 4) : fallbackYear;
-  return months.map((m) => ({ month: m, label: chipLabel(m, year) }));
-}
-
-function pct(cur: number, prev: number): string {
-  if (prev === 0) return '—';
-  const p = Math.round(((cur - prev) / prev) * 100);
-  return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}%`;
-}
 
 export default async function OverviewPage({
   searchParams,

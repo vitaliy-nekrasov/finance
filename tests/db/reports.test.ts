@@ -3,6 +3,8 @@ import { createTestDb } from '../helpers/db';
 import type { Db } from '@/db/client';
 import { ingestStatement } from '@/db/repo';
 import { getLatestMonth, getMonthly, getMonthsWithData, getReport, getTransactions } from '@/db/reports';
+import { transactions } from '@/db/schema';
+import { sql } from 'drizzle-orm';
 import { stmt, tx } from './fixtures';
 
 const oct = { from: '2026-10-01', to: '2026-10-31' };
@@ -90,5 +92,11 @@ test('getMonthsWithData: distinct months ascending, empty db → []', async () =
     ]),
     'a.xlsx',
   );
+  expect(await getMonthsWithData(db)).toEqual(['2026-08', '2026-09', '2026-10']);
+
+  // a month holding only an internal row is excluded
+  await ingestStatement(db, stmt('privat', [tx('privat', '2026-07-10T10:00:00', -100, 'own transfer')]), 'b.xlsx');
+  expect(await getMonthsWithData(db)).toContain('2026-07');
+  await db.update(transactions).set({ kind: 'internal' }).where(sql`${transactions.occurredAt} < '2026-08-01'`);
   expect(await getMonthsWithData(db)).toEqual(['2026-08', '2026-09', '2026-10']);
 });

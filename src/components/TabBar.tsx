@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { glassClass } from './Glass';
 
@@ -39,7 +39,18 @@ const TABS: { href: string; label: string; icon: ReactNode }[] = [
 
 export function TabBar() {
   const pathname = usePathname();
-  const active = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+  const sp = useSearchParams();
+  const active = (href: string) =>
+    href === '/' ? pathname === '/' || pathname.startsWith('/category/') : pathname.startsWith(href);
+
+  // Keep the selected period when moving between tabs.
+  const period = new URLSearchParams();
+  for (const k of ['month', 'from', 'to']) {
+    const v = sp.get(k);
+    if (v) period.set(k, v);
+  }
+  const qs = period.toString();
+  const withPeriod = (href: string) => (qs ? `${href}?${qs}` : href);
 
   return (
     <nav
@@ -53,7 +64,7 @@ export function TabBar() {
           return (
             <li key={t.href} className="flex-1">
               <Link
-                href={t.href}
+                href={withPeriod(t.href)}
                 aria-current={on ? 'page' : undefined}
                 className={`flex flex-col items-center gap-0.5 py-1 text-[11px] transition-colors ${
                   on ? 'text-[#67e8f9]' : 'text-white/50 hover:text-white/80'

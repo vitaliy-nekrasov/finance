@@ -10,6 +10,7 @@ const MONTHS_SHORT_GEN = ['янв', 'фев', 'мар', 'апр', 'мая', 'и�
 
 const MONTH_RE = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
+const yearOk = (y: number) => y >= 1900 && y <= 2999;
 const pad = (n: number) => String(n).padStart(2, '0');
 const daysIn = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
@@ -17,8 +18,44 @@ function validDate(s: string | undefined): { y: number; m: number; d: number } |
   const mt = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s ?? '');
   if (!mt) return null;
   const [y, m, d] = [Number(mt[1]), Number(mt[2]), Number(mt[3])];
-  if (m < 1 || m > 12 || d < 1 || d > daysIn(y, m)) return null;
+  if (!yearOk(y) || m < 1 || m > 12 || d < 1 || d > daysIn(y, m)) return null;
   return { y, m, d };
+}
+
+function validMonth(s: string | undefined): boolean {
+  const mt = MONTH_RE.exec(s ?? '');
+  return !!mt && yearOk(Number(mt[1]));
+}
+
+export type PeriodChip = { month: string; label: string };
+
+function chipLabel(m: string, selectedYear: string): string {
+  const [y, mo] = m.split('-');
+  const name = SHORT_MONTH_NOM[Number(mo) - 1];
+  return y === selectedYear ? name : `${name} ${y.slice(2)}`;
+}
+
+/** Selected month plus up to 2 data months on each side (custom range: last 4 data months). */
+export function neighbourChips(all: string[], selected: string | null, fallbackYear: string): PeriodChip[] {
+  const set = new Set(all);
+  let months: string[];
+  if (selected) {
+    set.add(selected);
+    const sorted = [...set].sort();
+    const i = sorted.indexOf(selected);
+    months = sorted.slice(Math.max(0, i - 2), i + 3);
+  } else {
+    months = [...set].sort().slice(-4);
+  }
+  const year = selected ? selected.slice(0, 4) : fallbackYear;
+  return months.map((m) => ({ month: m, label: chipLabel(m, year) }));
+}
+
+/** Relative change as '+4%' / '−6%' (U+2212); '—' when the base is 0. */
+export function pct(cur: number, prev: number): string {
+  if (prev === 0) return '—';
+  const p = Math.round(((cur - prev) / prev) * 100);
+  return `${p > 0 ? '+' : p < 0 ? '−' : ''}${Math.abs(p)}%`;
 }
 
 export function prevMonth(m: string): string {
@@ -62,7 +99,7 @@ export function resolvePeriod(
       fa.y === fb.y ? `${part(fa, false)} – ${part(fb, true)}` : `${part(fa, true)} – ${part(fb, true)}`;
     return { range: { from, to }, label, month: null };
   }
-  if (sp.month && MONTH_RE.test(sp.month)) return monthResult(sp.month);
+  if (sp.month && validMonth(sp.month)) return monthResult(sp.month);
   return latest ? monthResult(latest) : null;
 }
 

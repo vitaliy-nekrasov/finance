@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { glassClass } from './Glass';
 
-export type PeriodChip = { month: string; label: string };
+import type { PeriodChip } from '@/lib/period';
 
 export function PeriodPicker({
   label,

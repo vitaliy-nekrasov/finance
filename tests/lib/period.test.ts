@@ -1,5 +1,29 @@
 import { expect, test } from 'vitest';
-import { prevMonth, resolvePeriod } from '@/lib/period';
+import { neighbourChips, pct, prevMonth, resolvePeriod } from '@/lib/period';
+
+test('out-of-range years are rejected', () => {
+  expect(resolvePeriod({ month: '0000-05' }, '2026-10')!.month).toBe('2026-10');
+  expect(resolvePeriod({ month: '3000-05' }, '2026-10')!.month).toBe('2026-10');
+  expect(resolvePeriod({ from: '0000-01-01', to: '2026-01-02' }, '2026-10')!.month).toBe('2026-10');
+  expect(resolvePeriod({ from: '2026-01-01', to: '9999-01-02' }, '2026-10')!.month).toBe('2026-10');
+});
+
+test('neighbourChips: +-2 around selected, edges, custom', () => {
+  const all = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
+  expect(neighbourChips(all, '2026-07', '2026').map((c) => c.month)).toEqual(['2026-05', '2026-06', '2026-07', '2026-08', '2026-09']);
+  expect(neighbourChips(all, '2026-05', '2026').map((c) => c.month)).toEqual(['2026-05', '2026-06', '2026-07']);
+  expect(neighbourChips(all, '2026-10', '2026').map((c) => c.month)).toEqual(['2026-08', '2026-09', '2026-10']);
+  expect(neighbourChips(all, null, '2026').map((c) => c.month)).toEqual(['2026-07', '2026-08', '2026-09', '2026-10']);
+  expect(neighbourChips(['2025-12', '2026-01'], '2026-01', '2026').map((c) => c.label)).toEqual(['Дек 25', 'Янв']);
+  expect(neighbourChips([], '2026-03', '2026').map((c) => c.month)).toEqual(['2026-03']);
+});
+
+test('pct', () => {
+  expect(pct(100, 0)).toBe('—');
+  expect(pct(104, 100)).toBe('+4%');
+  expect(pct(94, 100)).toBe('−6%');
+  expect(pct(100, 100)).toBe('0%');
+});
 
 test('defaults to latest month', () => {
   expect(resolvePeriod({}, '2026-10')).toEqual({

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { logoutAction } from '@/app/login/actions';
 import { Background } from '@/components/Background';
 import { TabBar } from '@/components/TabBar';
@@ -20,7 +20,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </button>
       </form>
       <main className="mx-auto w-full max-w-md px-4 pb-32 pt-6 text-white">{children}</main>
-      <TabBar />
+      <Suspense fallback={null}>
+        <TabBar />
+      </Suspense>
     </>
   );
 }
