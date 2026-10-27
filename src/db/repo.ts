@@ -132,6 +132,7 @@ export async function recomputeInternal(db: Db): Promise<number> {
     amountKop: r.amountKop,
     description: r.description,
     bankCategory: r.bankCategory,
+    category: r.category as CategoryId,
   }));
   const internal = findInternalTransfers(candidates);
 

@@ -41,7 +41,7 @@ test('overlapping Sep–Oct over Oct → only September rows added', async () =>
 
 test('privat −75000 ₴ alone counts as expense; after mono +75000 ₴ upload both internal; report excludes them', async () => {
   const base = tx('privat', '2026-10-05T10:00:00', -10000, 'Сільпо', { bankCategory: 'Супермаркети та продукти' });
-  const transfer = tx('privat', '2026-10-10T12:00:00', -7500000, 'Переказ');
+  const transfer = tx('privat', '2026-10-10T12:00:00', -7500000, 'Переказ', { bankCategory: 'Перекази' });
   await ingestStatement(db, stmt('privat', [base, transfer]), 'p.xlsx');
   const expenseWithoutTransfer = 10000;
   expect((await getReport(db, oct)).expenseKop).toBe(expenseWithoutTransfer + 7500000);
@@ -53,10 +53,23 @@ test('privat −75000 ₴ alone counts as expense; after mono +75000 ₴ upload 
 });
 
 test('deleteUpload of mono → privat transfer is expense again', async () => {
-  await ingestStatement(db, stmt('privat', [tx('privat', '2026-10-10T12:00:00', -7500000, 'Переказ')]), 'p.xlsx');
+  await ingestStatement(db, stmt('privat', [tx('privat', '2026-10-10T12:00:00', -7500000, 'Переказ', { bankCategory: 'Перекази' })]), 'p.xlsx');
   const r = await ingestStatement(db, stmt('mono', [tx('mono', '2026-10-10T12:01:00', 7500000, 'Від: Віталій')]), 'm.xlsx');
   expect((await getReport(db, oct)).expenseKop).toBe(0);
   await deleteUpload(db, r.uploadId);
   expect((await getReport(db, oct)).expenseKop).toBe(7500000);
   expect(await recomputeInternal(db)).toBe(0);
+});
+
+test('grocery purchase + incoming transfer of equal amount on other account → both counted', async () => {
+  await ingestStatement(
+    db,
+    stmt('privat', [tx('privat', '2026-10-10T12:00:00', -50000, 'Сільпо', { bankCategory: 'Супермаркети та продукти' })]),
+    'p.xlsx',
+  );
+  const r = await ingestStatement(db, stmt('mono', [tx('mono', '2026-10-10T18:00:00', 50000, 'Від: Друг')]), 'm.xlsx');
+  expect(r.internalFound).toBe(0);
+  const rep = await getReport(db, oct);
+  expect(rep.expenseKop).toBe(50000);
+  expect(rep.incomeKop).toBe(50000);
 });

@@ -1,3 +1,5 @@
+import type { CategoryId } from './categories';
+
 export interface InternalCandidate {
   id: number;
   accountKey: string;
@@ -5,11 +7,15 @@ export interface InternalCandidate {
   amountKop: number;
   description: string;
   bankCategory: string | null;
+  category: CategoryId;
 }
 
 const MARKER_CATEGORY = 'Зарахування зі своєї картки';
 const MARKER_DESCRIPTION = /(на|зі|з) сво(єї|ю) картк/i;
 const MAX_GAP_MS = 48 * 60 * 60 * 1000;
+// Only transfer-like rows may be amount-paired: a purchase or refund that happens to
+// match an incoming transfer must stay in the totals.
+const PAIRABLE: ReadonlySet<CategoryId> = new Set<CategoryId>(['transfers', 'income']);
 
 // Wall-time string parsed as if UTC: no local time zone involved.
 function wallMs(s: string): number {
@@ -18,17 +24,18 @@ function wallMs(s: string): number {
 
 export function findInternalTransfers(txs: InternalCandidate[]): Set<number> {
   const internal = new Set<number>();
+  const isMarker = (t: InternalCandidate) =>
+    t.bankCategory === MARKER_CATEGORY || MARKER_DESCRIPTION.test(t.description);
 
   for (const t of txs) {
-    if (t.bankCategory === MARKER_CATEGORY || MARKER_DESCRIPTION.test(t.description)) {
-      internal.add(t.id);
-    }
+    if (isMarker(t)) internal.add(t.id);
   }
 
   // Group by |amount|, split into debits/credits.
   const groups = new Map<number, { debits: InternalCandidate[]; credits: InternalCandidate[] }>();
   for (const t of txs) {
     if (t.amountKop === 0) continue;
+    if (!PAIRABLE.has(t.category) && !isMarker(t)) continue;
     const abs = Math.abs(t.amountKop);
     let g = groups.get(abs);
     if (!g) groups.set(abs, (g = { debits: [], credits: [] }));

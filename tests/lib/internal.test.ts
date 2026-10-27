@@ -3,7 +3,7 @@ import { findInternalTransfers, type InternalCandidate } from '@/lib/internal';
 
 const c = (o: Partial<InternalCandidate> & { id: number }): InternalCandidate => ({
   accountKey: 'A', occurredAt: '2026-01-10T12:00:00', amountKop: -10000,
-  description: 'x', bankCategory: null, ...o,
+  description: 'x', bankCategory: null, category: 'transfers', ...o,
 });
 const sorted = (s: Set<number>) => [...s].sort((a, b) => a - b);
 
@@ -74,6 +74,34 @@ describe('findInternalTransfers', () => {
   it('lonely outgoing transfer to unknown card -> not internal', () => {
     const r = findInternalTransfers([c({ id: 1, description: 'Переказ на картку 5375****1111' })]);
     expect(r.size).toBe(0);
+  });
+  it('income credit pairs with transfers debit', () => {
+    const r = findInternalTransfers([
+      c({ id: 1, accountKey: 'A', amountKop: -50000, category: 'transfers' }),
+      c({ id: 2, accountKey: 'B', amountKop: 50000, category: 'income', occurredAt: '2026-01-10T14:00:00' }),
+    ]);
+    expect(sorted(r)).toEqual([1, 2]);
+  });
+  it('groceries −500 + income +500 on another account within 48h → not internal', () => {
+    const r = findInternalTransfers([
+      c({ id: 1, accountKey: 'A', amountKop: -50000, category: 'groceries', description: 'Сільпо' }),
+      c({ id: 2, accountKey: 'B', amountKop: 50000, category: 'income', occurredAt: '2026-01-10T14:00:00' }),
+    ]);
+    expect(r.size).toBe(0);
+  });
+  it('refund (+500, groceries) never pairs', () => {
+    const r = findInternalTransfers([
+      c({ id: 1, accountKey: 'A', amountKop: -50000, category: 'transfers' }),
+      c({ id: 2, accountKey: 'B', amountKop: 50000, category: 'groceries', description: 'Повернення' }),
+    ]);
+    expect(r.size).toBe(0);
+  });
+  it('marker row pairs regardless of its category', () => {
+    const r = findInternalTransfers([
+      c({ id: 1, accountKey: 'A', amountKop: -10000, category: 'other', description: 'Переказ на свою картку' }),
+      c({ id: 2, accountKey: 'B', amountKop: 10000, category: 'income' }),
+    ]);
+    expect(sorted(r)).toEqual([1, 2]);
   });
   it('zero amount never pairs', () => {
     const r = findInternalTransfers([
