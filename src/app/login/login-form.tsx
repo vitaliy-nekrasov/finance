@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from 'react';
 import { motion, useAnimationControls, useReducedMotion } from 'motion/react';
+import { glassClass } from '@/components/Glass';
 import { loginAction } from './actions';
 
 const inputCls =
@@ -22,7 +23,7 @@ export function LoginForm() {
     <motion.form
       action={action}
       animate={controls}
-      className="relative w-full max-w-sm rounded-[20px] border border-white/[.12] bg-white/[.07] p-6 backdrop-blur-xl"
+      className={`relative w-full max-w-sm p-6 ${glassClass}`}
     >
       <h1 className="text-2xl font-bold tracking-tight">Вход</h1>
       <p className="mt-1 text-sm text-white/60">Семейные финансы</p>

@@ -30,6 +30,11 @@ describe('session token', () => {
   it('accepts a fresh token', async () => {
     expect(await verifySessionToken(await createSessionToken())).toBe(true);
   });
+  it('fails closed when SESSION_SECRET is shorter than 32 bytes', async () => {
+    process.env.SESSION_SECRET = 'too-short';
+    await expect(createSessionToken()).rejects.toThrow(/SESSION_SECRET/);
+    await expect(verifySessionToken('anything')).resolves.toBe(false);
+  });
   it('rejects garbage and undefined', async () => {
     expect(await verifySessionToken('garbage')).toBe(false);
     expect(await verifySessionToken(undefined)).toBe(false);

@@ -7,7 +7,9 @@ export const SESSION_MAX_AGE_SEC = 90 * 24 * 60 * 60;
 function secretKey(): Uint8Array {
   const s = process.env.SESSION_SECRET;
   if (!s) throw new Error('SESSION_SECRET is not set');
-  return new TextEncoder().encode(s);
+  const bytes = new TextEncoder().encode(s);
+  if (bytes.length < 32) throw new Error('SESSION_SECRET must be at least 32 bytes');
+  return bytes;
 }
 
 export async function createSessionToken(): Promise<string> {
