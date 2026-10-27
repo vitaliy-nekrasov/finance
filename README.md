@@ -9,6 +9,8 @@ npm install --legacy-peer-deps
 npm run dev
 ```
 
+`--legacy-peer-deps` нужен из-за конфликта peer-зависимостей на npm 9 / Node 20 (в том числе у vitest); `npm ci` не подходит, пока lock-файл не синхронизирован с package.json.
+
 Без `DATABASE_URL` приложение работает на локальной PGlite-базе в `./.pglite` (создаётся само, в git не попадает). В продакшене `DATABASE_URL` обязателен.
 
 Для входа в dev задайте в `.env.local` (см. `.env.example`) `AUTH_USERNAME`, `AUTH_PASSWORD_HASH` и `SESSION_SECRET`.
@@ -20,7 +22,7 @@ npm run dev
 1. **База.** Создайте проект в [Neon](https://neon.tech), скопируйте строку подключения в `DATABASE_URL`.
 2. **Пароль.** `npx tsx scripts/hash-password.ts '<пароль>'` — вывод положите в `AUTH_PASSWORD_HASH`. Логин — `AUTH_USERNAME`.
 3. **Секрет сессии.** `openssl rand -base64 32` → `SESSION_SECRET`. Должен быть не короче 32 байт.
-4. **Миграции.** С `DATABASE_URL` в окружении: `npx drizzle-kit migrate`.
+4. **Миграции.** drizzle-kit не читает `.env`, передайте переменную явно: `DATABASE_URL='postgres://…' npx drizzle-kit migrate` (или `node --env-file=.env.local node_modules/.bin/drizzle-kit migrate`).
 5. **Vercel.** Импортируйте репозиторий и задайте env: `DATABASE_URL`, `AUTH_USERNAME`, `AUTH_PASSWORD_HASH`, `SESSION_SECRET`. Деплой.
 
 Заметки по безопасности:
