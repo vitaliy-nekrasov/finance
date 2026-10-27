@@ -2,7 +2,7 @@ import { beforeEach, expect, test } from 'vitest';
 import { createTestDb } from '../helpers/db';
 import type { Db } from '@/db/client';
 import { ingestStatement } from '@/db/repo';
-import { getLatestMonth, getMonthly, getReport, getTransactions } from '@/db/reports';
+import { getLatestMonth, getMonthly, getMonthsWithData, getReport, getTransactions } from '@/db/reports';
 import { stmt, tx } from './fixtures';
 
 const oct = { from: '2026-10-01', to: '2026-10-31' };
@@ -76,4 +76,19 @@ test('getLatestMonth on empty db → null', async () => {
   expect(await getLatestMonth(db)).toBeNull();
   await ingestStatement(db, stmt('privat', [tx('privat', '2026-09-05T10:00:00', -1, 'x')]), 'a.xlsx');
   expect(await getLatestMonth(db)).toBe('2026-09');
+});
+
+test('getMonthsWithData: distinct months ascending, empty db → []', async () => {
+  expect(await getMonthsWithData(db)).toEqual([]);
+  await ingestStatement(
+    db,
+    stmt('privat', [
+      tx('privat', '2026-10-05T10:00:00', -100, 'a'),
+      tx('privat', '2026-08-31T23:59:59', -100, 'b'),
+      tx('privat', '2026-10-06T10:00:00', -100, 'c'),
+      tx('privat', '2026-09-01T00:00:00', 500, 'd'),
+    ]),
+    'a.xlsx',
+  );
+  expect(await getMonthsWithData(db)).toEqual(['2026-08', '2026-09', '2026-10']);
 });

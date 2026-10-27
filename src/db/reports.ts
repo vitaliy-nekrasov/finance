@@ -145,6 +145,17 @@ export async function getLatestMonth(db: Db): Promise<string | null> {
   return row?.m ?? null;
 }
 
+/** Months ('YYYY-MM', ascending) that have at least one non-internal transaction. */
+export async function getMonthsWithData(db: Db): Promise<string[]> {
+  const month = sql<string>`to_char(${transactions.occurredAt}, 'YYYY-MM')`;
+  const rows = await db
+    .selectDistinct({ month })
+    .from(transactions)
+    .where(sql`${transactions.kind} <> 'internal'`)
+    .orderBy(month);
+  return rows.map((r) => r.month);
+}
+
 export async function listUploads(db: Db) {
   const rows = await db.select().from(uploads).orderBy(desc(uploads.uploadedAt), desc(uploads.id));
   return rows.map((u) => ({
