@@ -48,6 +48,11 @@ export function getDb(): Db {
     return instance;
   }
   if (typeof WebSocket === 'undefined') neonConfig.webSocketConstructor = ws;
-  instance = drizzle(new Pool({ connectionString: url }), { schema }) as unknown as Db;
+  const pool = new Pool({ connectionString: url, max: 5, idleTimeoutMillis: 10_000 });
+  // Neon drops idle connections; without a listener the pool's 'error' event is an
+  // uncaught exception that kills the function. The pool discards the dead client itself.
+  // Never log the error object: it may carry connection details.
+  pool.on('error', () => {});
+  instance = drizzle(pool, { schema }) as unknown as Db;
   return instance;
 }
