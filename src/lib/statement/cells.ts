@@ -22,7 +22,8 @@ export function parseKyivDate(v: unknown): string | null {
 
 export function cellText(v: unknown): string {
   if (v === null || v === undefined) return '';
-  return String(v).trim();
+  // NFC: банки иногда пишут «ї» как «і» + U+0308
+  return String(v).normalize('NFC').trim();
 }
 
 export function isEmptyRow(row: unknown[]): boolean {

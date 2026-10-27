@@ -44,6 +44,14 @@ describe('parseMono', () => {
     expect(s.transactions[0].amountKop).toBe(-266625);
   });
 
+  test('decomposed Unicode (і + U+0308 for «ї») in header and text parses', () => {
+    const nfd = (r: unknown[]) => r.map((c) => (typeof c === 'string' ? c.normalize('NFD') : c));
+    const s = parseMono([...HEAD.map(nfd), nfd(th()), nfd(['27.10.2026 09:12:50', 'Поповнення «Київстар»', 4829, -156, 156, 'UAH', '—', '6', '—', 100])]);
+    expect(s.transactions).toHaveLength(1);
+    expect(s.transactions[0].description).toBe('Поповнення «Київстар»'.normalize('NFC'));
+    expect(s.accounts[0].key).toBe(IBAN);
+  });
+
   test('"—" cells and string amounts parse', () => {
     const s = parseMono([...HEAD, th(), t2]);
     expect(s.transactions[0]).toMatchObject({ amountKop: -124995, mcc: 5411 });
