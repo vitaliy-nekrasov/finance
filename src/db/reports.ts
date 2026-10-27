@@ -141,7 +141,8 @@ export async function getTransactions(
 export async function getLatestMonth(db: Db): Promise<string | null> {
   const [row] = await db
     .select({ m: sql<string | null>`to_char(max(${transactions.occurredAt}), 'YYYY-MM')` })
-    .from(transactions);
+    .from(transactions)
+    .where(sql`${transactions.kind} <> 'internal'`);
   return row?.m ?? null;
 }
 

@@ -22,13 +22,17 @@ function wallMs(s: string): number {
   return Date.parse(s.endsWith('Z') ? s : `${s}Z`);
 }
 
-export function findInternalTransfers(txs: InternalCandidate[]): Set<number> {
-  const internal = new Set<number>();
+/**
+ * Internal-transfer groups: each matched debit/credit pair, plus each marker row that
+ * was not paired (as a single-element group). Every id appears in at most one group.
+ */
+export function findInternalGroups(txs: InternalCandidate[]): number[][] {
+  const markers: number[] = [];
   const isMarker = (t: InternalCandidate) =>
     t.bankCategory === MARKER_CATEGORY || MARKER_DESCRIPTION.test(t.description);
 
   for (const t of txs) {
-    if (isMarker(t)) internal.add(t.id);
+    if (isMarker(t)) markers.push(t.id);
   }
 
   // Group by |amount|, split into debits/credits.
@@ -42,6 +46,7 @@ export function findInternalTransfers(txs: InternalCandidate[]): Set<number> {
     (t.amountKop < 0 ? g.debits : g.credits).push(t);
   }
 
+  const result: number[][] = [];
   const used = new Set<number>();
   for (const { debits, credits } of groups.values()) {
     const pairs: { dt: number; debit: number; credit: number }[] = [];
@@ -58,10 +63,14 @@ export function findInternalTransfers(txs: InternalCandidate[]): Set<number> {
       if (used.has(p.debit) || used.has(p.credit)) continue;
       used.add(p.debit);
       used.add(p.credit);
-      internal.add(p.debit);
-      internal.add(p.credit);
+      result.push([p.debit, p.credit]);
     }
   }
 
-  return internal;
+  for (const id of markers) if (!used.has(id)) result.push([id]);
+  return result;
+}
+
+export function findInternalTransfers(txs: InternalCandidate[]): Set<number> {
+  return new Set(findInternalGroups(txs).flat());
 }

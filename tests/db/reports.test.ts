@@ -100,3 +100,9 @@ test('getMonthsWithData: distinct months ascending, empty db → []', async () =
   await db.update(transactions).set({ kind: 'internal' }).where(sql`${transactions.occurredAt} < '2026-08-01'`);
   expect(await getMonthsWithData(db)).toEqual(['2026-08', '2026-09', '2026-10']);
 });
+
+test('getLatestMonth ignores months holding only internal rows', async () => {
+  await ingestStatement(db, stmt('privat', [tx('privat', '2026-09-05T10:00:00', -100, 'x')]), 'a.xlsx');
+  await ingestStatement(db, stmt('privat', [tx('privat', '2026-11-05T10:00:00', -100, 'Переказ на свою картку')]), 'b.xlsx');
+  expect(await getLatestMonth(db)).toBe('2026-09');
+});

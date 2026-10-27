@@ -69,7 +69,8 @@ export function categorize(
   tx: Pick<ParsedTransaction, 'bank' | 'bankCategory' | 'mcc' | 'description' | 'amountKop'>,
 ): CategoryId {
   if (tx.bank === 'privat') {
-    const cat = tx.bankCategory ? PRIVAT[tx.bankCategory] : undefined;
+    // Object.hasOwn: a bank category like "constructor" must not hit Object.prototype.
+    const cat = tx.bankCategory && Object.hasOwn(PRIVAT, tx.bankCategory) ? PRIVAT[tx.bankCategory] : undefined;
     return cat ?? fallback(tx.amountKop);
   }
   if (tx.mcc === 4829) {

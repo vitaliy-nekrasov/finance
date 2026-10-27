@@ -43,6 +43,7 @@ export function Dropzone() {
     setRows(batch.map(({ id, file }) => ({ id, name: file.name, status: 'pending' as const })));
 
     let internalSum = 0;
+    let anyOk = false;
     // One file per request, strictly sequential: avoids concurrent ingests.
     for (const { id, file } of batch) {
       try {
@@ -54,6 +55,7 @@ export function Dropzone() {
           patch(id, { status: 'error', text: data.error ?? 'Не удалось загрузить файл' });
           continue;
         }
+        anyOk = true;
         internalSum += data.internalFound ?? 0;
         patch(id, {
           status: 'ok',
@@ -64,7 +66,8 @@ export function Dropzone() {
         patch(id, { status: 'error', text: 'Нет связи с сервером' });
       }
     }
-    setInternal(internalSum);
+    // The summary only makes sense if at least one file was actually ingested.
+    setInternal(anyOk ? internalSum : null);
     setBusy(false);
     router.refresh();
     if (input.current) input.current.value = '';

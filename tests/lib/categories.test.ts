@@ -24,6 +24,11 @@ describe('categorize privat', () => {
     expect(categorize(tx({ bank: 'privat', bankCategory: 'Нова категорія', amountKop: 500 }))).toBe('income');
     expect(categorize(tx({ bank: 'privat', bankCategory: null }))).toBe('other');
   });
+  it('Object.prototype keys fall back', () => {
+    expect(categorize(tx({ bank: 'privat', bankCategory: 'constructor' }))).toBe('other');
+    expect(categorize(tx({ bank: 'privat', bankCategory: 'toString', amountKop: 500 }))).toBe('income');
+    expect(categorize(tx({ bank: 'privat', bankCategory: '__proto__' }))).toBe('other');
+  });
 });
 
 describe('categorize mono', () => {

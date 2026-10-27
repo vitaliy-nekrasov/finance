@@ -1,13 +1,14 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from './client';
 import { accounts, transactions, uploadTransactions, uploads } from './schema';
 import { categorize, classifyKind, type CategoryId, type Kind } from '@/lib/categories';
 import { withDedupKeys } from '@/lib/dedup';
-import { findInternalTransfers, type InternalCandidate } from '@/lib/internal';
+import { findInternalGroups, type InternalCandidate } from '@/lib/internal';
 import type { Bank, ParsedStatement } from '@/lib/statement/types';
 
 export interface IngestResult {
-  uploadId: number;
+  /** null when the statement had no transactions: nothing is stored. */
+  uploadId: number | null;
   bank: Bank;
   total: number;
   added: number;
@@ -29,6 +30,9 @@ function chunks<T>(arr: T[], size: number): T[][] {
 export const toWallTime = (s: string): string => s.replace(' ', 'T');
 
 export async function ingestStatement(db: Db, s: ParsedStatement, filename: string): Promise<IngestResult> {
+  if (s.transactions.length === 0) {
+    return { uploadId: null, bank: s.bank, total: 0, added: 0, duplicates: 0, internalFound: 0, warnings: s.warnings };
+  }
   return db.transaction(async (trx) => {
     const [upload] = await trx
       .insert(uploads)
@@ -79,25 +83,23 @@ export async function ingestStatement(db: Db, s: ParsedStatement, filename: stri
     }
 
     // Membership for every row of the statement, newly inserted or already known.
+    const mine = new Set<number>();
     for (const part of chunks(rows, INSERT_CHUNK)) {
       const ids = await trx
         .select({ id: transactions.id })
         .from(transactions)
         .where(inArray(transactions.dedupKey, part.map((r) => r.dedupKey)));
       if (ids.length === 0) continue;
+      for (const { id } of ids) mine.add(id);
       await trx
         .insert(uploadTransactions)
         .values(ids.map(({ id }) => ({ uploadId, transactionId: id })))
         .onConflictDoNothing();
     }
 
-    await recomputeInternal(trx);
-
-    const [{ n }] = await trx
-      .select({ n: sql<number>`count(*)::int` })
-      .from(transactions)
-      .innerJoin(uploadTransactions, eq(uploadTransactions.transactionId, transactions.id))
-      .where(and(eq(uploadTransactions.uploadId, uploadId), eq(transactions.kind, 'internal')));
+    // Pairs and lone marker rows that involve this upload's rows.
+    const groups = await recompute(trx);
+    const internalFound = groups.filter((g) => g.some((id) => mine.has(id))).length;
 
     await trx
       .update(uploads)
@@ -110,7 +112,7 @@ export async function ingestStatement(db: Db, s: ParsedStatement, filename: stri
       total: rows.length,
       added,
       duplicates: rows.length - added,
-      internalFound: n,
+      internalFound,
       warnings: s.warnings,
     };
   });
@@ -131,6 +133,11 @@ export async function deleteUpload(db: Db, uploadId: number): Promise<void> {
 
 /** Resets every kind to classifyKind and re-marks internal transfers. Returns the number of internal rows. */
 export async function recomputeInternal(db: Db): Promise<number> {
+  return (await recompute(db)).flat().length;
+}
+
+/** recomputeInternal, returning the internal groups (pairs and lone marker rows). */
+async function recompute(db: Db): Promise<number[][]> {
   const all = await db
     .select({
       id: transactions.id,
@@ -153,7 +160,8 @@ export async function recomputeInternal(db: Db): Promise<number> {
     bankCategory: r.bankCategory,
     category: r.category as CategoryId,
   }));
-  const internal = findInternalTransfers(candidates);
+  const groups = findInternalGroups(candidates);
+  const internal = new Set(groups.flat());
 
   const toUpdate: Record<Kind, number[]> = { expense: [], income: [], internal: [] };
   for (const r of all) {
@@ -165,5 +173,5 @@ export async function recomputeInternal(db: Db): Promise<number> {
       await db.update(transactions).set({ kind }).where(inArray(transactions.id, ids));
     }
   }
-  return internal.size;
+  return groups;
 }

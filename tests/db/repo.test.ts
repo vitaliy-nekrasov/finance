@@ -57,7 +57,7 @@ test('deleteUpload of mono → privat transfer is expense again', async () => {
   await ingestStatement(db, stmt('privat', [tx('privat', '2026-10-10T12:00:00', -7500000, 'Переказ', { bankCategory: 'Перекази' })]), 'p.xlsx');
   const r = await ingestStatement(db, stmt('mono', [tx('mono', '2026-10-10T12:01:00', 7500000, 'Від: Віталій')]), 'm.xlsx');
   expect((await getReport(db, oct)).expenseKop).toBe(0);
-  await deleteUpload(db, r.uploadId);
+  await deleteUpload(db, r.uploadId!);
   expect((await getReport(db, oct)).expenseKop).toBe(7500000);
   expect(await recomputeInternal(db)).toBe(0);
 });
@@ -95,4 +95,39 @@ test('grocery purchase + incoming transfer of equal amount on other account → 
   const rep = await getReport(db, oct);
   expect(rep.expenseKop).toBe(50000);
   expect(rep.incomeKop).toBe(50000);
+});
+
+test('statement with 0 transactions → no upload row, counts 0, warnings returned', async () => {
+  const empty = { ...stmt('privat', []), warnings: ['Нет операций'] };
+  const r = await ingestStatement(db, empty, 'empty.xlsx');
+  expect(r).toEqual({
+    uploadId: null,
+    bank: 'privat',
+    total: 0,
+    added: 0,
+    duplicates: 0,
+    internalFound: 0,
+    warnings: ['Нет операций'],
+  });
+  expect(await listUploads(db)).toHaveLength(0);
+});
+
+test('internalFound counts pairs and marker rows, not rows', async () => {
+  const other = { accountKey: '4149****0001' };
+  const both = await ingestStatement(
+    db,
+    stmt('privat', [
+      tx('privat', '2026-10-10T12:00:00', -20000, 'Переказ', { bankCategory: 'Перекази' }),
+      tx('privat', '2026-10-10T12:01:00', 20000, 'Зарахування', { ...other, bankCategory: 'Зарахування' }),
+    ]),
+    'both.xlsx',
+  );
+  expect(both.internalFound).toBe(1);
+
+  const marker = await ingestStatement(
+    db,
+    stmt('privat', [tx('privat', '2026-10-12T12:00:00', -30000, 'Переказ на свою картку')]),
+    'marker.xlsx',
+  );
+  expect(marker.internalFound).toBe(1);
 });
