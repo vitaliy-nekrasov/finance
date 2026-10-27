@@ -35,6 +35,25 @@ test('report: income, expense, net, byCategory sorted desc; refund +69 in cafe r
   ]);
 });
 
+test('inflow: every non-internal plus in range, refunds included', async () => {
+  await ingestStatement(
+    db,
+    stmt('privat', [
+      tx('privat', '2026-10-15T10:00:00', 1000000, 'Зарплата'),
+      tx('privat', '2026-10-12T10:00:00', 6900, 'Повернення кафе', { bankCategory: 'Ресторани, кафе, бари' }),
+      tx('privat', '2026-10-13T10:00:00', 50000, 'Зі своєї картки', { bankCategory: 'Зарахування зі своєї картки' }),
+      tx('privat', '2026-10-14T10:00:00', -20000, 'Ресторан', { bankCategory: 'Ресторани, кафе, бари' }),
+      tx('privat', '2026-11-01T00:00:00', 70000, 'Листопад'),
+    ]),
+    'a.xlsx',
+  );
+  const r = await getReport(db, oct);
+  expect(r.inflowKop).toBe(1000000 + 6900);
+  expect(r.inflowCount).toBe(2);
+  const rows = await getTransactions(db, oct, { inflow: true });
+  expect(rows.map((t) => t.description)).toEqual(['Зарплата', 'Повернення кафе']);
+});
+
 test('getMonthly returns zero-filled months in order', async () => {
   await ingestStatement(
     db,

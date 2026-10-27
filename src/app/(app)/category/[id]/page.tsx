@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDb } from '@/db/client';
 import { getLatestMonth, getTransactions } from '@/db/reports';
-import { CATEGORIES, type CategoryId } from '@/lib/categories';
+import { CATEGORIES, INFLOW, type CategoryId } from '@/lib/categories';
 import { formatUAH } from '@/lib/money';
 import { periodQuery, resolvePeriod } from '@/lib/period';
 import { Glass } from '@/components/Glass';
@@ -21,7 +21,8 @@ export default async function CategoryPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
-  if (!Object.hasOwn(CATEGORIES, id)) notFound();
+  const inflow = id === INFLOW.id;
+  if (!inflow && !Object.hasOwn(CATEGORIES, id)) notFound();
   const category = id as CategoryId;
   const raw = await searchParams;
 
@@ -29,10 +30,16 @@ export default async function CategoryPage({
   const period = resolvePeriod({ month: first(raw.month), from: first(raw.from), to: first(raw.to) }, await getLatestMonth(db));
   if (!period) notFound();
 
-  const rows = (await getTransactions(db, period.range, { category })).filter((r) => r.kind !== 'internal');
+  const rows = inflow
+    ? await getTransactions(db, period.range, { inflow: true })
+    : (await getTransactions(db, period.range, { category })).filter((r) => r.kind !== 'internal');
   const sum = (kind: 'income' | 'expense') => rows.filter((r) => r.kind === kind).reduce((s, r) => s + r.amountKop, 0);
-  const total = category === 'income' ? sum('income') : -sum('expense');
-  const { emoji, name } = CATEGORIES[category];
+  const total = inflow
+    ? rows.reduce((s, r) => s + r.amountKop, 0)
+    : category === 'income'
+      ? sum('income')
+      : -sum('expense');
+  const { emoji, name } = inflow ? INFLOW : CATEGORIES[category];
 
   return (
     <>

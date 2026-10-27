@@ -10,6 +10,12 @@ export type CategoryBarRow = {
   amountText: string;
   ratio: number; // 0..1, amount / max
   href: string;
+  tone?: 'inflow';
+};
+
+const GRADIENT = {
+  default: 'linear-gradient(90deg,#8b5cf6,#06b6d4)',
+  inflow: 'linear-gradient(90deg,#34d399,#67e8f9)',
 };
 
 export function CategoryBars({ rows }: { rows: CategoryBarRow[] }) {
@@ -28,7 +34,7 @@ export function CategoryBars({ rows }: { rows: CategoryBarRow[] }) {
             <div className="h-1.5 overflow-hidden rounded-md bg-white/[.08]">
               <motion.div
                 className="h-full origin-left rounded-md"
-                style={{ width: `${Math.max(r.ratio, 0.02) * 100}%`, backgroundImage: 'linear-gradient(90deg,#8b5cf6,#06b6d4)' }}
+                style={{ width: `${Math.max(r.ratio, 0.02) * 100}%`, backgroundImage: GRADIENT[r.tone ?? 'default'] }}
                 initial={reduce ? false : { scaleX: 0 }}
                 animate={{ scaleX: 1 }}
                 transition={{ duration: 1.1, delay: 0.4 + i * 0.1, ease: [0.2, 0.8, 0.2, 1] }}

@@ -22,6 +22,9 @@ export const CATEGORIES: Record<CategoryId, { name: string; emoji: string }> = {
   other: { name: 'Другое', emoji: '📦' },
 };
 
+/** Pseudo-category on the overview: every non-internal plus in the period, refunds included. */
+export const INFLOW = { id: 'inflow', name: 'Приход средств', emoji: '💰' } as const;
+
 export type Kind = 'expense' | 'income' | 'internal';
 
 const PRIVAT: Record<string, CategoryId> = {

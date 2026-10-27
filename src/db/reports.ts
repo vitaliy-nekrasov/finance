@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, sql, type SQL } from 'drizzle-orm';
 import type { Db } from './client';
 import { toWallTime } from './repo';
 import { accounts, transactions, uploads } from './schema';
@@ -27,6 +27,8 @@ const inRange = (r: Range): SQL =>
     sql`${transactions.occurredAt} < (${r.to}::date + 1)::timestamp`,
   )!;
 
+const notInternal = sql`${transactions.kind} <> 'internal'`;
+
 export async function getReport(db: Db, r: Range) {
   const rows = await db
     .select({
@@ -34,16 +36,22 @@ export async function getReport(db: Db, r: Range) {
       kind: transactions.kind,
       sum: sql<string>`sum(${transactions.amountKop})`,
       count: sql<number>`count(*)::int`,
+      inflow: sql<string>`coalesce(sum(${transactions.amountKop}) filter (where ${transactions.amountKop} > 0), 0)`,
+      inflowCount: sql<number>`(count(*) filter (where ${transactions.amountKop} > 0))::int`,
     })
     .from(transactions)
-    .where(and(inRange(r), sql`${transactions.kind} <> 'internal'`))
+    .where(and(inRange(r), notInternal))
     .groupBy(transactions.category, transactions.kind);
 
   let incomeKop = 0;
   let expenseKop = 0;
+  let inflowKop = 0;
+  let inflowCount = 0;
   const byCategory: { category: CategoryId; amountKop: number; count: number }[] = [];
   for (const row of rows) {
     const sum = Number(row.sum);
+    inflowKop += Number(row.inflow);
+    inflowCount += row.inflowCount;
     if (row.kind === 'income') {
       incomeKop += sum;
     } else if (row.kind === 'expense') {
@@ -55,6 +63,9 @@ export async function getReport(db: Db, r: Range) {
     incomeKop,
     expenseKop,
     netKop: incomeKop - expenseKop,
+    /** Every plus in range, refunds included; internal transfers excluded. */
+    inflowKop,
+    inflowCount,
     byCategory: byCategory.filter((c) => c.amountKop > 0).sort((a, b) => b.amountKop - a.amountKop),
   };
 }
@@ -105,10 +116,11 @@ export async function getMonthly(db: Db, toMonth: string, months: number) {
 export async function getTransactions(
   db: Db,
   r: Range,
-  f: { category?: CategoryId; q?: string } = {},
+  f: { category?: CategoryId; inflow?: boolean; q?: string } = {},
 ): Promise<TxRow[]> {
   const conds: SQL[] = [inRange(r)];
   if (f.category) conds.push(eq(transactions.category, f.category));
+  if (f.inflow) conds.push(gt(transactions.amountKop, 0), notInternal);
   if (f.q) {
     const esc = f.q.replace(/[\\%_]/g, '\\$&');
     conds.push(sql`${transactions.description} ILIKE ${`%${esc}%`} ESCAPE '\\'`);

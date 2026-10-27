@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getDb } from '@/db/client';
 import { getLatestMonth, getMonthly, getMonthsWithData, getReport } from '@/db/reports';
-import { CATEGORIES } from '@/lib/categories';
+import { CATEGORIES, INFLOW } from '@/lib/categories';
 import { formatUAH } from '@/lib/money';
 import { neighbourChips, pct, periodQuery, prevMonth, resolvePeriod, SHORT_MONTH_NOM, type PeriodParams } from '@/lib/period';
 import { AnimatedNumber } from '@/components/AnimatedNumber';
@@ -100,7 +100,23 @@ export default async function OverviewPage({
 
       <Rise index={3} className="mt-3">
         <Glass className="p-3.5">
-          <div className="mb-1 text-[11px] text-white/55">Куда ушли деньги</div>
+          <div className="mb-1 text-[11px] text-white/55">Категории</div>
+          {report.inflowCount > 0 && (
+            <CategoryBars
+              rows={[
+                {
+                  id: INFLOW.id,
+                  emoji: INFLOW.emoji,
+                  name: INFLOW.name,
+                  amountText: formatUAH(report.inflowKop, { sign: true, decimals: 0 }),
+                  // Own scale: a salary would otherwise squash every expense bar.
+                  ratio: 1,
+                  href: `/category/${INFLOW.id}?${q}`,
+                  tone: 'inflow',
+                },
+              ]}
+            />
+          )}
           {report.byCategory.length === 0 ? (
             <p className="py-2 text-xs text-white/55">За этот период расходов нет</p>
           ) : (
