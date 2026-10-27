@@ -5,11 +5,11 @@
 ## Локальная разработка
 
 ```bash
-npm install --legacy-peer-deps
+npm ci
 npm run dev
 ```
 
-`--legacy-peer-deps` нужен из-за конфликта peer-зависимостей на npm 9 / Node 20 (в том числе у vitest); `npm ci` не подходит, пока lock-файл не синхронизирован с package.json.
+Lock-файл синхронизирован с package.json: `npm ci` (и обычный `npm install`) работает на Node 20 / npm 9 без дополнительных флагов.
 
 Без `DATABASE_URL` приложение работает на локальной PGlite-базе в `./.pglite` (создаётся само, в git не попадает). В продакшене `DATABASE_URL` обязателен.
 
