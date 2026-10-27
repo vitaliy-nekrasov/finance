@@ -14,6 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "Семейные финансы", template: "%s · Семейные финансы" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Финансы" },
   description: "Семейные финансы: выписки Приват и monobank в одном месте",
 };
 

@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Семейные финансы
 
-## Getting Started
+Закрытое PWA для семьи: загрузка выписок Приват и monobank (Excel), обзор месяца, категории, список операций. Next.js (App Router), Postgres (Neon), Drizzle.
 
-First, run the development server:
+## Локальная разработка
 
 ```bash
+npm install --legacy-peer-deps
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Без `DATABASE_URL` приложение работает на локальной PGlite-базе в `./.pglite` (создаётся само, в git не попадает). В продакшене `DATABASE_URL` обязателен.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Для входа в dev задайте в `.env.local` (см. `.env.example`) `AUTH_USERNAME`, `AUTH_PASSWORD_HASH` и `SESSION_SECRET`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Тесты: `npm test`. Проверка типов: `npx tsc --noEmit`.
 
-## Learn More
+## Деплой
 
-To learn more about Next.js, take a look at the following resources:
+1. **База.** Создайте проект в [Neon](https://neon.tech), скопируйте строку подключения в `DATABASE_URL`.
+2. **Пароль.** `npx tsx scripts/hash-password.ts '<пароль>'` — вывод положите в `AUTH_PASSWORD_HASH`. Логин — `AUTH_USERNAME`.
+3. **Секрет сессии.** `openssl rand -base64 32` → `SESSION_SECRET`. Должен быть не короче 32 байт.
+4. **Миграции.** С `DATABASE_URL` в окружении: `npx drizzle-kit migrate`.
+5. **Vercel.** Импортируйте репозиторий и задайте env: `DATABASE_URL`, `AUTH_USERNAME`, `AUTH_PASSWORD_HASH`, `SESSION_SECRET`. Деплой.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Заметки по безопасности:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Выход удаляет только cookie в браузере. Чтобы разом закрыть все сессии, смените `SESSION_SECRET` и передеплойте.
+- Ограничение попыток входа опирается на заголовок `x-forwarded-for`, который выставляет Vercel. На другом хостинге убедитесь, что заголовок проставляется доверенным прокси.
+- Исходные файлы выписок нигде не сохраняются, из шапки monobank хранятся только маски карт, IBAN и период.
 
-## Deploy on Vercel
+## Установка на iPhone
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Откройте сайт в Safari → «Поделиться» → «На экран Домой».
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Проверка на реальных выписках
+
+Выполняется вручную, с реальными файлами Привата и monobank (свои и жены). Положите их в `samples/` (в git не попадает), загрузите в локальное приложение и сверьте:
+
+- [ ] число операций в приложении совпадает с числом строк в файлах (с учётом пропущенных валютных счетов и дублей);
+- [ ] итог месяца (доходы, расходы) совпадает с суммой, посчитанной вручную (скрипт или таблица);
+- [ ] найденные «переводы между своими» действительно переводы между своими картами, а не платежи третьим лицам;
+- [ ] включена ли комиссия monobank в «Сума в валюті картки». Если нет, добавить её в сумму в `parseMono` вместе с тестом.
+
+Найденные расхождения превращайте в тесты (на обезличенных фикстурах) и исправляйте.
