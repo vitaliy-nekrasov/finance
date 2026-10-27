@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from './client';
-import { accounts, transactions, uploads } from './schema';
+import { accounts, transactions, uploadTransactions, uploads } from './schema';
 import { categorize, classifyKind, type CategoryId, type Kind } from '@/lib/categories';
 import { withDedupKeys } from '@/lib/dedup';
 import { findInternalTransfers, type InternalCandidate } from '@/lib/internal';
@@ -56,7 +56,6 @@ export async function ingestStatement(db: Db, s: ParsedStatement, filename: stri
       const category = categorize(t);
       return {
         dedupKey: t.dedupKey,
-        uploadId,
         bank: t.bank,
         accountKey: t.accountKey,
         occurredAt: t.occurredAt,
@@ -79,12 +78,26 @@ export async function ingestStatement(db: Db, s: ParsedStatement, filename: stri
       added += inserted.length;
     }
 
+    // Membership for every row of the statement, newly inserted or already known.
+    for (const part of chunks(rows, INSERT_CHUNK)) {
+      const ids = await trx
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(inArray(transactions.dedupKey, part.map((r) => r.dedupKey)));
+      if (ids.length === 0) continue;
+      await trx
+        .insert(uploadTransactions)
+        .values(ids.map(({ id }) => ({ uploadId, transactionId: id })))
+        .onConflictDoNothing();
+    }
+
     await recomputeInternal(trx);
 
     const [{ n }] = await trx
       .select({ n: sql<number>`count(*)::int` })
       .from(transactions)
-      .where(and(eq(transactions.uploadId, uploadId), eq(transactions.kind, 'internal')));
+      .innerJoin(uploadTransactions, eq(uploadTransactions.transactionId, transactions.id))
+      .where(and(eq(uploadTransactions.uploadId, uploadId), eq(transactions.kind, 'internal')));
 
     await trx
       .update(uploads)
@@ -105,7 +118,13 @@ export async function ingestStatement(db: Db, s: ParsedStatement, filename: stri
 
 export async function deleteUpload(db: Db, uploadId: number): Promise<void> {
   await db.transaction(async (trx) => {
-    await trx.delete(uploads).where(eq(uploads.id, uploadId));
+    await trx.delete(uploads).where(eq(uploads.id, uploadId)); // cascades its membership rows
+    // Drop only rows that no remaining upload contains.
+    await trx
+      .delete(transactions)
+      .where(
+        sql`not exists (select 1 from ${uploadTransactions} where ${uploadTransactions.transactionId} = ${transactions.id})`,
+      );
     await recomputeInternal(trx);
   });
 }

@@ -3,6 +3,7 @@ import { createTestDb } from '../helpers/db';
 import type { Db } from '@/db/client';
 import { deleteUpload, ingestStatement, recomputeInternal } from '@/db/repo';
 import { getReport, listUploads } from '@/db/reports';
+import { transactions } from '@/db/schema';
 import { stmt, tx } from './fixtures';
 
 const oct = { from: '2026-10-01', to: '2026-10-31' };
@@ -59,6 +60,28 @@ test('deleteUpload of mono → privat transfer is expense again', async () => {
   await deleteUpload(db, r.uploadId);
   expect((await getReport(db, oct)).expenseKop).toBe(7500000);
   expect(await recomputeInternal(db)).toBe(0);
+});
+
+test('Oct uploaded, then Sep–Oct uploaded, delete the Oct upload → October report unchanged', async () => {
+  const r1 = await ingestStatement(db, stmt('privat', octRows()), 'oct.xlsx');
+  const sep = [tx('privat', '2026-09-20T10:00:00', -7000, 'Аптека')];
+  const r2 = await ingestStatement(db, stmt('privat', [...sep, ...octRows()]), 'sepoct.xlsx');
+  const before = await getReport(db, oct);
+  expect(before.expenseKop).toBe(15000);
+  await deleteUpload(db, r1.uploadId!);
+  expect(await getReport(db, oct)).toEqual(before);
+  const ups = await listUploads(db);
+  expect(ups).toHaveLength(1);
+  expect(ups[0]).toMatchObject({ id: r2.uploadId, added: 1 });
+});
+
+test('delete the only upload containing rows → rows gone', async () => {
+  const r1 = await ingestStatement(db, stmt('privat', octRows()), 'oct.xlsx');
+  await ingestStatement(db, stmt('privat', [tx('privat', '2026-09-20T10:00:00', -7000, 'Аптека')]), 'sep.xlsx');
+  await deleteUpload(db, r1.uploadId!);
+  expect((await getReport(db, oct)).expenseKop).toBe(0);
+  const left = await db.select({ id: transactions.id }).from(transactions);
+  expect(left).toHaveLength(1);
 });
 
 test('grocery purchase + incoming transfer of equal amount on other account → both counted', async () => {

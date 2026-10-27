@@ -8,6 +8,13 @@
       "when": 1793116477249,
       "tag": "0000_broken_silvermane",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793119278982,
+      "tag": "0001_upload_membership",
+      "breakpoints": true
     }
   ]
 }

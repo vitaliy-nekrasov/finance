@@ -1,4 +1,4 @@
-import { bigint, date, index, integer, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, date, index, integer, pgTable, primaryKey, serial, text, timestamp } from 'drizzle-orm/pg-core';
 
 export const uploads = pgTable('uploads', {
   id: serial('id').primaryKey(),
@@ -24,9 +24,6 @@ export const transactions = pgTable(
   {
     id: serial('id').primaryKey(),
     dedupKey: text('dedup_key').notNull().unique(),
-    uploadId: integer('upload_id')
-      .notNull()
-      .references(() => uploads.id, { onDelete: 'cascade' }),
     bank: text('bank').notNull(),
     accountKey: text('account_key').notNull(),
     occurredAt: timestamp('occurred_at', { mode: 'string' }).notNull(),
@@ -38,6 +35,23 @@ export const transactions = pgTable(
     kind: text('kind').notNull(),
   },
   (t) => [index('transactions_occurred_at_idx').on(t.occurredAt)],
+);
+
+/** Which uploads contain which transaction: a row lives while at least one upload still contains it. */
+export const uploadTransactions = pgTable(
+  'upload_transactions',
+  {
+    uploadId: integer('upload_id')
+      .notNull()
+      .references(() => uploads.id, { onDelete: 'cascade' }),
+    transactionId: integer('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'cascade' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.uploadId, t.transactionId] }),
+    index('upload_transactions_transaction_id_idx').on(t.transactionId),
+  ],
 );
 
 export const loginAttempts = pgTable('login_attempts', {
