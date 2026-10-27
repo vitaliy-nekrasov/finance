@@ -47,12 +47,16 @@ export function parsePrivat(rows: Rows): ParsedStatement {
 
   const accounts = new Map<string, ParsedAccount>();
   let skippedCurrency = 0;
+  let skipped = 0;
 
   for (const row of rows.slice(header.index + 1)) {
     if (isEmptyRow(row)) continue;
     const occurredAt = parseKyivDate(at(row, COL.date));
     const amountKop = parseAmountToKop(at(row, COL.amount));
-    if (!occurredAt || amountKop === null) continue;
+    if (!occurredAt || amountKop === null) {
+      skipped++;
+      continue;
+    }
 
     const currency = cellText(at(row, COL.currency)).toUpperCase();
     if (currency && currency !== 'UAH') {
@@ -85,5 +89,6 @@ export function parsePrivat(rows: Rows): ParsedStatement {
       `Пропущено операций в валюте, отличной от гривны: ${skippedCurrency}.`,
     );
   }
+  if (skipped > 0) statement.warnings.push(`Пропущено ${skipped} строк, которые не удалось разобрать`);
   return statement;
 }
