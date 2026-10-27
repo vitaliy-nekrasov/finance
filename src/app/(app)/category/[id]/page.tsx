@@ -5,6 +5,7 @@ import { getLatestMonth, getTransactions } from '@/db/reports';
 import { CATEGORIES, INFLOW, type CategoryId } from '@/lib/categories';
 import { formatUAH } from '@/lib/money';
 import { periodQuery, resolvePeriod } from '@/lib/period';
+import { parseTxSort, sortTx, TX_SORTS } from '@/lib/tx-sort';
 import { Glass } from '@/components/Glass';
 import { Rise } from '@/components/Rise';
 import { TxList } from '@/components/TxList';
@@ -40,10 +41,12 @@ export default async function CategoryPage({
       ? sum('income')
       : -sum('expense');
   const { emoji, name } = inflow ? INFLOW : CATEGORIES[category];
+  const sort = parseTxSort(first(raw.sort));
+  const q = periodQuery(period);
 
   return (
     <>
-      <Link href={`/?${periodQuery(period)}`} className="text-[13px] text-white/60 transition hover:text-white">
+      <Link href={`/?${q}`} className="text-[13px] text-white/60 transition hover:text-white">
         ← {period.label}
       </Link>
       <Rise index={1} className="mt-2">
@@ -51,9 +54,26 @@ export default async function CategoryPage({
           {emoji} {name} · {formatUAH(total, { decimals: 0 })}
         </h1>
       </Rise>
-      <Rise index={2} className="mt-3">
+      <Rise index={2} className="mt-3 flex gap-2">
+        {TX_SORTS.map((s) => (
+          <Link
+            key={s.id}
+            href={`/category/${id}?${q}${s.id === 'date' ? '' : `&sort=${s.id}`}`}
+            replace
+            scroll={false}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition ${
+              s.id === sort
+                ? 'border-[#67e8f9]/60 bg-[#67e8f9]/15 text-[#67e8f9]'
+                : 'border-white/[.12] bg-white/[.06] text-white/70'
+            }`}
+          >
+            {s.label}
+          </Link>
+        ))}
+      </Rise>
+      <Rise index={3} className="mt-3">
         <Glass className="px-3.5 py-1">
-          <TxList rows={rows} />
+          <TxList rows={sortTx(rows, sort)} />
         </Glass>
       </Rise>
     </>
