@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { glassClass } from './Glass';
@@ -37,6 +37,18 @@ const TABS: { href: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
+/** Swaps the tab icon for a spinner while the tapped link's navigation is pending. */
+function TabIcon({ icon }: { icon: ReactNode }) {
+  const { pending } = useLinkStatus();
+  if (!pending) return icon;
+  return (
+    <svg {...svg} className="text-[#67e8f9]" style={{ animation: 'tab-spin 0.7s linear infinite' }}>
+      <circle cx="12" cy="12" r="9" opacity="0.25" />
+      <path d="M21 12a9 9 0 0 0-9-9" />
+    </svg>
+  );
+}
+
 export function TabBar() {
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -70,7 +82,7 @@ export function TabBar() {
                   on ? 'text-[#67e8f9]' : 'text-white/50 hover:text-white/80'
                 }`}
               >
-                {t.icon}
+                <TabIcon icon={t.icon} />
                 {t.label}
               </Link>
             </li>
