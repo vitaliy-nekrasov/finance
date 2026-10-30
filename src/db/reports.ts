@@ -116,11 +116,12 @@ export async function getMonthly(db: Db, toMonth: string, months: number) {
 export async function getTransactions(
   db: Db,
   r: Range,
-  f: { category?: CategoryId; inflow?: boolean; q?: string } = {},
+  f: { category?: CategoryId; inflow?: boolean; q?: string; card?: string } = {},
 ): Promise<TxRow[]> {
   const conds: SQL[] = [inRange(r)];
   if (f.category) conds.push(eq(transactions.category, f.category));
   if (f.inflow) conds.push(gt(transactions.amountKop, 0), notInternal);
+  if (f.card) conds.push(eq(accounts.label, f.card));
   if (f.q) {
     const esc = f.q.replace(/[\\%_]/g, '\\$&');
     conds.push(sql`${transactions.description} ILIKE ${`%${esc}%`} ESCAPE '\\'`);
@@ -148,6 +149,17 @@ export async function getTransactions(
     bank: row.bank as Bank,
     last4: row.last4 ?? null,
   }));
+}
+
+/** Labels of the cards that have transactions in the range, in a stable order. */
+export async function getCardsInRange(db: Db, r: Range): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ label: accounts.label })
+    .from(transactions)
+    .innerJoin(accounts, eq(accounts.key, transactions.accountKey))
+    .where(inRange(r))
+    .orderBy(accounts.label);
+  return rows.map((x) => x.label);
 }
 
 export async function getLatestMonth(db: Db): Promise<string | null> {

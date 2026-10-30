@@ -2,7 +2,7 @@ import { beforeEach, expect, test } from 'vitest';
 import { createTestDb } from '../helpers/db';
 import type { Db } from '@/db/client';
 import { ingestStatement } from '@/db/repo';
-import { getLatestMonth, getMonthly, getMonthsWithData, getReport, getTransactions } from '@/db/reports';
+import { getCardsInRange, getLatestMonth, getMonthly, getMonthsWithData, getReport, getTransactions } from '@/db/reports';
 import { transactions } from '@/db/schema';
 import { sql } from 'drizzle-orm';
 import { stmt, tx } from './fixtures';
@@ -124,4 +124,17 @@ test('getLatestMonth ignores months holding only internal rows', async () => {
   await ingestStatement(db, stmt('privat', [tx('privat', '2026-09-05T10:00:00', -100, 'x')]), 'a.xlsx');
   await ingestStatement(db, stmt('privat', [tx('privat', '2026-11-05T10:00:00', -100, 'Переказ на свою картку')]), 'b.xlsx');
   expect(await getLatestMonth(db)).toBe('2026-09');
+});
+
+test('getTransactions filters by card label; getCardsInRange lists cards with data in range', async () => {
+  await ingestStatement(
+    db,
+    stmt('privat', [tx('privat', '2026-10-05T10:00:00', -10000, 'Сільпо', { bankCategory: 'Супермаркети та продукти' })]),
+    'a.xlsx',
+  );
+  const cards = await getCardsInRange(db, oct);
+  expect(cards).toHaveLength(1);
+  expect(await getTransactions(db, oct, { card: cards[0] })).toHaveLength(1);
+  expect(await getTransactions(db, oct, { card: 'Приват *0000' })).toHaveLength(0);
+  expect(await getCardsInRange(db, { from: '2026-09-01', to: '2026-09-30' })).toEqual([]);
 });

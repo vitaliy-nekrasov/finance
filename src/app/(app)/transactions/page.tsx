@@ -1,6 +1,7 @@
 import { getDb } from '@/db/client';
-import { getLatestMonth, getMonthsWithData, getTransactions } from '@/db/reports';
-import { neighbourChips, resolvePeriod } from '@/lib/period';
+import { getCardsInRange, getLatestMonth, getMonthsWithData, getTransactions } from '@/db/reports';
+import { neighbourChips, periodQuery, resolvePeriod } from '@/lib/period';
+import { CardFilter } from '@/components/CardFilter';
 import { Glass } from '@/components/Glass';
 import { PeriodPicker } from '@/components/PeriodPicker';
 import { Rise } from '@/components/Rise';
@@ -24,6 +25,7 @@ export default async function TransactionsPage({
     ? resolvePeriod({ month: first(raw.month), from: first(raw.from), to: first(raw.to) }, latest)
     : null;
   const q = (first(raw.q) ?? '').trim().slice(0, 100);
+  const cardParam = (first(raw.card) ?? '').slice(0, 100);
 
   if (!latest || !period) {
     return (
@@ -34,10 +36,14 @@ export default async function TransactionsPage({
     );
   }
 
+  const cards = await getCardsInRange(db, period.range);
+  const card = cards.includes(cardParam) ? cardParam : null;
   const [rows, dataMonths] = await Promise.all([
-    getTransactions(db, period.range, { q: q || undefined }),
+    getTransactions(db, period.range, { q: q || undefined, card: card ?? undefined }),
     getMonthsWithData(db),
   ]);
+  const cardHref = (c: string | null) =>
+    `/transactions?${periodQuery(period)}${q ? `&q=${encodeURIComponent(q)}` : ''}${c ? `&card=${encodeURIComponent(c)}` : ''}`;
 
   return (
     <>
@@ -51,12 +57,18 @@ export default async function TransactionsPage({
           to={period.range.to}
           basePath="/transactions"
           q={q}
+          card={card ?? undefined}
         />
       </Rise>
       <Rise index={1} className="mt-3">
         <SearchBox initial={q} />
       </Rise>
-      <Rise index={2} className="mt-3">
+      {cards.length > 1 && (
+        <Rise index={2} className="mt-3">
+          <CardFilter cards={cards} selected={card} hrefFor={cardHref} />
+        </Rise>
+      )}
+      <Rise index={3} className="mt-3">
         <Glass className="px-3.5 py-1">
           <TxList rows={rows} markInternal />
         </Glass>

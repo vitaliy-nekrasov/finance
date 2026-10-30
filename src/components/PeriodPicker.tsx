@@ -14,6 +14,7 @@ export function PeriodPicker({
   to,
   basePath = '/',
   q,
+  card,
 }: {
   label: string;
   selectedMonth: string | null;
@@ -22,6 +23,7 @@ export function PeriodPicker({
   to: string;
   basePath?: string;
   q?: string;
+  card?: string;
 }) {
   const [custom, setCustom] = useState(selectedMonth === null);
   const chipBase = 'shrink-0 rounded-full border px-3 py-1.5 text-xs transition';
@@ -46,7 +48,7 @@ export function PeriodPicker({
         {chips.map((c) => (
           <Link
             key={c.month}
-            href={`${basePath}?month=${c.month}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
+            href={`${basePath}?month=${c.month}${q ? `&q=${encodeURIComponent(q)}` : ''}${card ? `&card=${encodeURIComponent(card)}` : ''}`}
             aria-current={c.month === selectedMonth ? 'true' : undefined}
             className={`${chipBase} ${c.month === selectedMonth ? on : off}`}
           >
@@ -61,6 +63,7 @@ export function PeriodPicker({
       {custom && (
         <form action={basePath} method="get" className={`${glassClass} mt-2 grid grid-cols-2 gap-2 p-3`}>
           {q ? <input type="hidden" name="q" value={q} /> : null}
+          {card ? <input type="hidden" name="card" value={card} /> : null}
           <label className="min-w-0 text-[11px] text-white/55">
             С
             <input

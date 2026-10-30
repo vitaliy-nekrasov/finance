@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDb } from '@/db/client';
-import { getLatestMonth, getTransactions } from '@/db/reports';
+import { getCardsInRange, getLatestMonth, getTransactions } from '@/db/reports';
 import { CATEGORIES, INFLOW, type CategoryId } from '@/lib/categories';
 import { formatUAH } from '@/lib/money';
 import { periodQuery, resolvePeriod } from '@/lib/period';
 import { parseTxSort, sortTx, TX_SORTS } from '@/lib/tx-sort';
+import { CardFilter } from '@/components/CardFilter';
 import { Glass } from '@/components/Glass';
 import { Rise } from '@/components/Rise';
 import { TxList } from '@/components/TxList';
@@ -31,9 +32,12 @@ export default async function CategoryPage({
   const period = resolvePeriod({ month: first(raw.month), from: first(raw.from), to: first(raw.to) }, await getLatestMonth(db));
   if (!period) notFound();
 
+  const cards = await getCardsInRange(db, period.range);
+  const cardParam = first(raw.card) ?? '';
+  const card = cards.includes(cardParam) ? cardParam : undefined;
   const rows = inflow
-    ? await getTransactions(db, period.range, { inflow: true })
-    : (await getTransactions(db, period.range, { category })).filter((r) => r.kind !== 'internal');
+    ? await getTransactions(db, period.range, { inflow: true, card })
+    : (await getTransactions(db, period.range, { category, card })).filter((r) => r.kind !== 'internal');
   const sum = (kind: 'income' | 'expense') => rows.filter((r) => r.kind === kind).reduce((s, r) => s + r.amountKop, 0);
   const total = inflow
     ? rows.reduce((s, r) => s + r.amountKop, 0)
@@ -43,6 +47,8 @@ export default async function CategoryPage({
   const { emoji, name } = inflow ? INFLOW : CATEGORIES[category];
   const sort = parseTxSort(first(raw.sort));
   const q = periodQuery(period);
+  const cardQ = card ? `&card=${encodeURIComponent(card)}` : '';
+  const sortQ = sort === 'date' ? '' : `&sort=${sort}`;
 
   return (
     <>
@@ -58,7 +64,7 @@ export default async function CategoryPage({
         {TX_SORTS.map((s) => (
           <Link
             key={s.id}
-            href={`/category/${id}?${q}${s.id === 'date' ? '' : `&sort=${s.id}`}`}
+            href={`/category/${id}?${q}${s.id === 'date' ? '' : `&sort=${s.id}`}${cardQ}`}
             replace
             scroll={false}
             className={`shrink-0 rounded-full border px-3 py-1.5 text-xs transition ${
@@ -71,7 +77,16 @@ export default async function CategoryPage({
           </Link>
         ))}
       </Rise>
-      <Rise index={3} className="mt-3">
+      {cards.length > 1 && (
+        <Rise index={3} className="mt-3">
+          <CardFilter
+            cards={cards}
+            selected={card ?? null}
+            hrefFor={(c) => `/category/${id}?${q}${sortQ}${c ? `&card=${encodeURIComponent(c)}` : ''}`}
+          />
+        </Rise>
+      )}
+      <Rise index={4} className="mt-3">
         <Glass className="px-3.5 py-1">
           <TxList rows={sortTx(rows, sort)} />
         </Glass>
