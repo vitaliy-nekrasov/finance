@@ -59,29 +59,29 @@ export function PeriodPicker({
       </div>
 
       {custom && (
-        <form action={basePath} method="get" className={`${glassClass} mt-2 flex items-end gap-2 p-3`}>
+        <form action={basePath} method="get" className={`${glassClass} mt-2 grid grid-cols-2 gap-2 p-3`}>
           {q ? <input type="hidden" name="q" value={q} /> : null}
-          <label className="min-w-0 flex-1 text-[11px] text-white/55">
+          <label className="min-w-0 text-[11px] text-white/55">
             С
             <input
               type="date"
               name="from"
               required
               defaultValue={from}
-              className="mt-1 w-full rounded-lg border border-white/[.12] bg-white/[.06] px-2 py-1.5 text-xs text-white [color-scheme:dark]"
+              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-white/[.12] bg-white/[.06] px-2 py-1.5 text-xs text-white [color-scheme:dark]"
             />
           </label>
-          <label className="min-w-0 flex-1 text-[11px] text-white/55">
+          <label className="min-w-0 text-[11px] text-white/55">
             По
             <input
               type="date"
               name="to"
               required
               defaultValue={to}
-              className="mt-1 w-full rounded-lg border border-white/[.12] bg-white/[.06] px-2 py-1.5 text-xs text-white [color-scheme:dark]"
+              className="mt-1 block w-full min-w-0 appearance-none rounded-lg border border-white/[.12] bg-white/[.06] px-2 py-1.5 text-xs text-white [color-scheme:dark]"
             />
           </label>
-          <button type="submit" className="shrink-0 rounded-lg bg-white/15 px-3 py-2 text-xs font-medium">
+          <button type="submit" className="col-span-2 rounded-lg bg-white/15 px-3 py-2 text-xs font-medium">
             Показать
           </button>
         </form>

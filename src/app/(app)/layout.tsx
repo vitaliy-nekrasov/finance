@@ -19,7 +19,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </svg>
         </button>
       </form>
-      <main className="mx-auto w-full max-w-md px-4 pb-32 pt-6 text-white">{children}</main>
+      <main
+        className="mx-auto w-full max-w-md px-4 pb-32 text-white"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 24px)' }}
+      >{children}</main>
       <Suspense fallback={null}>
         <TabBar />
       </Suspense>
