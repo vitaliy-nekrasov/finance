@@ -131,7 +131,11 @@ export async function deleteUpload(db: Db, uploadId: number): Promise<void> {
   });
 }
 
-/** Resets every kind to classifyKind and re-marks internal transfers. Returns the number of internal rows. */
+/**
+ * Resets every kind to classifyKind and re-marks internal transfers: the outgoing side of a transfer
+ * between own cards is 'internal' (not an expense), the incoming side counts as income.
+ * Returns the number of rows that belong to internal groups.
+ */
 export async function recomputeInternal(db: Db): Promise<number> {
   return (await recompute(db)).flat().length;
 }
@@ -165,7 +169,11 @@ async function recompute(db: Db): Promise<number[][]> {
 
   const toUpdate: Record<Kind, number[]> = { expense: [], income: [], internal: [] };
   for (const r of all) {
-    const next: Kind = internal.has(r.id) ? 'internal' : classifyKind(r.amountKop, r.category as CategoryId);
+    const next: Kind = internal.has(r.id)
+      ? r.amountKop < 0
+        ? 'internal'
+        : 'income'
+      : classifyKind(r.amountKop, r.category as CategoryId);
     if (next !== r.kind) toUpdate[next].push(r.id);
   }
   for (const kind of Object.keys(toUpdate) as Kind[]) {

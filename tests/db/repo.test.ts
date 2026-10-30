@@ -40,7 +40,7 @@ test('overlapping Sep–Oct over Oct → only September rows added', async () =>
   expect(r).toMatchObject({ total: 4, added: 2, duplicates: 2 });
 });
 
-test('privat −75000 ₴ alone counts as expense; after mono +75000 ₴ upload both internal; report excludes them', async () => {
+test('privat −75000 ₴ alone counts as expense; after mono +75000 ₴ upload the debit is internal, the credit is income', async () => {
   const base = tx('privat', '2026-10-05T10:00:00', -10000, 'Сільпо', { bankCategory: 'Супермаркети та продукти' });
   const transfer = tx('privat', '2026-10-10T12:00:00', -7500000, 'Переказ', { bankCategory: 'Перекази' });
   await ingestStatement(db, stmt('privat', [base, transfer]), 'p.xlsx');
@@ -50,7 +50,7 @@ test('privat −75000 ₴ alone counts as expense; after mono +75000 ₴ upload 
   const res2 = await ingestStatement(db, stmt('mono', [tx('mono', '2026-10-10T12:01:00', 7500000, 'Від: Віталій')]), 'm.xlsx');
   expect(res2.internalFound).toBe(1);
   expect((await getReport(db, oct)).expenseKop).toBe(expenseWithoutTransfer);
-  expect((await getReport(db, oct)).incomeKop).toBe(0);
+  expect((await getReport(db, oct)).incomeKop).toBe(7500000);
 });
 
 test('deleteUpload of mono → privat transfer is expense again', async () => {

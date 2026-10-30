@@ -140,7 +140,7 @@ export function Dropzone() {
       {internal !== null && (
         <Glass className="mt-3 p-3">
           <div className="text-[11px] text-white/55">Найдено переводов между своими</div>
-          <div className="mt-0.5 text-[15px] font-semibold">{internal} · не учитываются</div>
+          <div className="mt-0.5 text-[15px] font-semibold">{internal} · списание не считается расходом</div>
         </Glass>
       )}
     </>

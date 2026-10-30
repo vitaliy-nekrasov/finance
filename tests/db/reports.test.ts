@@ -35,7 +35,7 @@ test('report: income, expense, net, byCategory sorted desc; refund +69 in cafe r
   ]);
 });
 
-test('inflow: every non-internal plus in range, refunds included', async () => {
+test('inflow: every plus in range, refunds and incoming own-card transfers included', async () => {
   await ingestStatement(
     db,
     stmt('privat', [
@@ -48,10 +48,10 @@ test('inflow: every non-internal plus in range, refunds included', async () => {
     'a.xlsx',
   );
   const r = await getReport(db, oct);
-  expect(r.inflowKop).toBe(1000000 + 6900);
-  expect(r.inflowCount).toBe(2);
+  expect(r.inflowKop).toBe(1000000 + 6900 + 50000);
+  expect(r.inflowCount).toBe(3);
   const rows = await getTransactions(db, oct, { inflow: true });
-  expect(rows.map((t) => t.description)).toEqual(['Зарплата', 'Повернення кафе']);
+  expect(rows.map((t) => t.description)).toEqual(['Зарплата', 'Зі своєї картки', 'Повернення кафе']);
 });
 
 test('getMonthly returns zero-filled months in order', async () => {
